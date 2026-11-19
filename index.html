@@ -326,7 +326,7 @@ table.t th{font-size:13px;color:var(--mu);font-weight:600}
 <script>
 "use strict";
 /* ================== CẤU HÌNH ================== */
-const VERSION = "19/11/2026 12:10";
+const VERSION = "19/11/2026 12:15";
 const COLLECTION = "kachiboshibaotrithietbi";   // cùng tên với app cũ nhưng ở project meeting-notes-hub
 const firebaseConfig = {   // project meeting-notes-hub (app Bảo trì thiết bị mới)
   apiKey: "AIzaSyDopqC4PRNCnO2GzKUAUCn21maUjhjK2M8",
@@ -1541,54 +1541,6 @@ function saveIncUpd0(){
   }
 }
 
-/* ---- Admin: xoá máy đan, máy may (và kế hoạch, nhật ký, sự cố, linh kiện, ảnh của các máy đó) khỏi app này ---- */
-VIEWS.rmown = {mgr: true, noDir: true, title: () => T("Xoá máy đan, máy may"), html(){
-  if (!isAdmin()) return empty("trash", T("Không có quyền"));
-  if (!F.ro) F = {ro: 1, plan: null};
-  let h = '<div class="hl">' + esc(T("Máy đan đã có app Chuyền đan, máy may đã có app Cuốn biên. Chức năng này xoá các máy đó khỏi app Bảo trì thiết bị, cùng kế hoạch, nhật ký bảo trì, sự cố, linh kiện và ảnh của chúng. Dữ liệu ở app Chuyền đan và app Cuốn biên không bị ảnh hưởng.")) + '</div>';
-  h += '<button class="btn w" onclick="roCheck()">' + ic("search") + T("Kiểm tra số lượng sẽ xoá") + '</button><div id="rores" style="margin-top:12px"></div>';
-  return h;
-}, after(){ roShow(); }};
-const RO_KINDS = [["devices", "Thiết bị"], ["plans", "Kế hoạch bảo trì"], ["logs", "Nhật ký bảo trì"], ["incidents", "Sự cố"], ["parts", "Linh kiện đã thay"], ["photos", "Ảnh"]];
-function roShow(){
-  const el = $("#rores"); if (!el) return;
-  if (!F.plan){ el.innerHTML = ""; return; }
-  const P = F.plan, tot = Object.values(P).reduce((a, x) => a + x.length, 0);
-  el.innerHTML = '<div class="card"><dl class="info">' + RO_KINDS.map(([k, l]) => '<dt>' + esc(T(l)) + '</dt><dd><b>' + P[k].length + '</b></dd>').join("") + '</dl>' +
-    (F.groups ? '<div class="mu sm" style="margin-top:6px">' + esc(F.groups) + '</div>' : "") + '</div>' +
-    (tot ? '<div class="lc"><label class="req">' + esc(T("Mật khẩu xoá")) + '</label><input id="ropw" class="pin" type="password" inputmode="numeric" autocomplete="off"></div>' +
-      '<button class="btn r" onclick="roRun()">' + ic("trash") + T("XOÁ {n} BẢN GHI", {n: tot}) + '</button>' : empty("ok", T("App này không còn máy đan, máy may nào.")));
-}
-async function roCheck(){
-  if (!isAdmin()) return;
-  busy(true);
-  try {
-    const dv = docs("devices", await Q("devices").get()).filter(d => isOwnApp(d.group)), ids = new Set(dv.map(d => d._id));
-    const P = {devices: dv.map(d => TYPES.devices + "_" + d._id)};
-    for (const k of ["plans", "logs", "incidents", "parts", "photos"]){
-      const L = ids.size ? docs(k, await Q(k).get()).filter(x => ids.has(x.devId)) : [];
-      P[k] = L.map(x => TYPES[k] + "_" + x._id);
-    }
-    const g = {}; dv.forEach(d => g[d.group] = (g[d.group] || 0) + 1);
-    F.groups = Object.entries(g).map(([k, n]) => k + ": " + n).join(" · ");
-    F.plan = P; roShow();
-  } catch(e){ onErr(e); } finally { busy(false); }
-}
-async function roRun(){
-  if (!isAdmin() || !F.plan) return;
-  if ((($("#ropw") || {}).value || "") !== PURGE_PW){ toast(T("Sai mật khẩu xoá"), "err"); return; }
-  const ids = [].concat(...Object.values(F.plan));
-  if (!confirm(T("Xoá vĩnh viễn {n} bản ghi của máy đan, máy may khỏi app này?", {n: ids.length}))) return;
-  busy(true);
-  try {
-    for (let i = 0; i < ids.length; i += 400){ const b = FS.batch(); ids.slice(i, i + 400).forEach(id => b.delete(COL.doc(id))); await withTimeout(b.commit(), 60000); }
-    ids.forEach(id => delete DB0[id]); F.repCache = {}; try { localStorage.removeItem(RKEY); } catch(e){}
-    put("config", "main", {cacheEpoch: Date.now(), groups: (S.cfg.groups || []).filter(g => !isOwnApp(g))}, true);   // các máy khác tải lại
-    cacheSave(); rebuild(); toast(T("Đã xoá {n} bản ghi", {n: ids.length}), "ok"); F.plan = null; roShow();
-  } catch(e){
-    if (e && e.code === "permission-denied") toast(T("Security Rules đang chặn việc xoá. Cần cho phép xoá trong Firestore Rules."), "err"); else onErr(e);
-  } finally { busy(false); }
-}
 /* ---- Thiết bị (quản lý) ---- */
 /* ---- Máy đan: xem mã hàng đang chạy, quản đốc chọn nhiều máy để đổi mã hàng ---- */
 const knitDevs = () => Object.values(S.dev).filter(d => isKnit(d.group) && d.status !== "off").sort((a, b) => a._id < b._id ? -1 : 1);
@@ -2175,7 +2127,6 @@ VIEWS.more = {mgr: true, title: () => T("Tài khoản & cài đặt"), html(){
     m("down", "Xuất dữ liệu (Excel/CSV)", "go('export')") +
     m("globe", "Ngôn ngữ", "setLang(LANG==='vi'?'ja':'vi')", LANG === "vi" ? "Tiếng Việt → 日本語" : "日本語 → Tiếng Việt") +
     m("sliders", "Cài đặt danh mục", "go('settings')") +
-    (isAdmin() ? m("trash", "Xoá máy đan, máy may khỏi app này", "go('rmown')", T("Đã có app Chuyền đan và app Cuốn biên riêng")) : "") +
     (isAdmin() ? m("trash", "Xoá toàn bộ dữ liệu", "go('purge')", T("Chỉ Quản trị, cần mật khẩu")) : "") +
     m("out", "Đăng xuất", "logout()") + '</div>' + foot();
 }};
