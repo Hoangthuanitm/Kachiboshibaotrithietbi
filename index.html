@@ -327,7 +327,7 @@ table.t th{font-size:13px;color:var(--mu);font-weight:600}
 <script>
 "use strict";
 /* ================== CẤU HÌNH ================== */
-const VERSION = "26/11/2026 09:50";
+const VERSION = "26/11/2026 10:50";
 const COLLECTION = "kachiboshibaotrithietbi";   // cùng tên với app cũ nhưng ở project meeting-notes-hub
 const firebaseConfig = {   // project meeting-notes-hub (app Bảo trì thiết bị mới)
   apiKey: "AIzaSyDopqC4PRNCnO2GzKUAUCn21maUjhjK2M8",
@@ -1822,12 +1822,14 @@ VIEWS.devform = {mgr: true, noDir: true, title: () => V.p.code ? T("Sửa thiế
   if (!canManageDev()) return empty("box", T("Chỉ Quản đốc hoặc Admin thêm, sửa thiết bị."));
   const e = V.p.code ? S.dev[V.p.code] : null;
   if (V.p.code && !e) return empty("box", "…");
-  const d = e || {status: "ok"};
+  // bản nháp khi vừa sang Cài đặt danh mục rồi quay lại: giữ nguyên những gì đã nhập
+  const dr = DEVDRAFT && DEVDRAFT.for === (V.p.code || "") ? DEVDRAFT : null; DEVDRAFT = null;
+  const d = Object.assign({}, e || {status: "ok"}, dr || {});
   F = {form: "dev", status: d.status || "ok"};
   const fld = (id, lab, val, opt) => '<div class="lc"><label class="' + (opt && opt.req ? "req" : "") + '">' + esc(T(lab)) + '</label><input id="' + id + '" value="' + esc(val || "") + '"' + (opt && opt.attr || "") + '></div>';
   let h = "";
   if (!e){ F.auto = nextCode();
-    h += '<div class="lc"><label class="req">' + esc(T("Mã thiết bị")) + '</label><input class="code" id="fcode" value="' + F.auto + '" style="text-transform:uppercase;font-size:20px" autocapitalize="characters">' +
+    h += '<div class="lc"><label class="req">' + esc(T("Mã thiết bị")) + '</label><input class="code" id="fcode" value="' + esc(dr && dr.code ? dr.code : F.auto) + '" style="text-transform:uppercase;font-size:20px" autocapitalize="characters">' +
     '<div class="mu sm" style="margin-top:4px">' + esc(T("Mã tự đặt theo số thứ tự, không trùng. Có thể sửa nếu cần.")) + '</div></div>'; }
   else h += '<div class="hl">' + esc(T("Mã thiết bị")) + ': <b class="code">' + esc(V.p.code) + '</b> <span class="mu sm">(' + esc(T("không đổi được")) + ')</span></div>';
   const groups = (S.cfg.groups || []).filter(g => !isOwnApp(g)); if (d.group && groups.indexOf(d.group) < 0) groups.push(d.group);
@@ -1836,8 +1838,12 @@ VIEWS.devform = {mgr: true, noDir: true, title: () => V.p.code ? T("Sửa thiế
   h += '<div class="lc" id="gaugeBox"' + (isKnit(d.group) ? "" : ' style="display:none"') + '><label class="req">' + esc(T("Loại máy")) + '</label><select id="fgauge"><option value="">' + esc(T("— Chọn loại máy —")) + '</option>' +
     GAUGES.map(g => '<option' + (g === d.gauge ? " selected" : "") + '>' + g + '</option>').join("") + '</select></div>';
   h += fld("fname", "Tên thiết bị", d.name, {req: 1});
-  h += '<div class="lc"><label>' + esc(T("Khu vực")) + '</label><input id="farea" list="dl_area" value="' + esc(d.area || "") + '"></div>';
-  h += '<datalist id="dl_area">' + areasAll().map(a => '<option value="' + esc(a) + '">').join("") + '</datalist>';
+  // Khu vực: ô chọn lấy từ Cài đặt danh mục (giữ cả khu vực cũ của máy nếu đã bị bỏ khỏi danh mục)
+  const areas = (S.cfg.areas || []).slice(); if (d.area && areas.indexOf(d.area) < 0) areas.push(d.area);
+  h += '<div class="lc"><label>' + esc(T("Khu vực")) + '</label><select id="farea"><option value="">' + esc(T("— Chọn khu vực —")) + '</option>' +
+    areas.map(a => '<option' + (a === d.area ? " selected" : "") + '>' + esc(a) + '</option>').join("") + '</select></div>';
+  h += '<div class="mu sm" style="margin:-4px 2px 12px">' + esc(T("Danh sách Nhóm máy và Khu vực lấy từ Cài đặt danh mục.")) +
+    ' <a href="#" style="color:var(--g);font-weight:700" onclick="devToCfg();return false">' + esc(T("Sửa danh mục")) + '</a></div>';
   h += '<div class="grid2">' + fld("fmaker", "Hãng", d.maker) + fld("fmodel", "Model", d.model) + '</div>';
   h += fld("fsince", "Ngày đưa vào sử dụng", d.since, {attr: ' type="date"'});
   if (e) h += '<div class="ck ' + (F.status === "off" ? "on" : "") + '" onclick="F.status=F.status===\'off\'?\'ok\':\'off\';this.classList.toggle(\'on\',F.status===\'off\')"><span class="bx">' + ic("ok") + '</span><span>' + esc(T("Ngừng sử dụng máy này (ẩn khỏi kế hoạch)")) + '</span></div>';
@@ -1845,6 +1851,14 @@ VIEWS.devform = {mgr: true, noDir: true, title: () => V.p.code ? T("Sửa thiế
   h += '<button class="btn" onclick="saveDev()">' + ic("ok") + T("LƯU THIẾT BỊ") + '</button>';
   return h;
 }};
+/* Từ form thiết bị sang Cài đặt danh mục: lưu tạm nội dung đang nhập, lưu danh mục xong quay lại form vẫn còn */
+let DEVDRAFT = null;
+function devToCfg(){
+  const v = id => (document.getElementById(id) || {}).value || "";
+  DEVDRAFT = {for: V.p.code || "", code: v("fcode"), group: v("fgroup"), gauge: v("fgauge"), name: v("fname"), area: v("farea"),
+    maker: v("fmaker"), model: v("fmodel"), since: v("fsince"), note: v("fnote"), status: F.status || "ok"};
+  go("settings");
+}
 /* Mã tự động: KCB-0001, KCB-0002… (không gắn với xưởng để máy chuyển xưởng không phải in lại tem) */
 function nextCode(from){
   let max = from || 0;
@@ -2280,15 +2294,21 @@ async function pgRun(){
 VIEWS.settings = {mgr: true, noDir: true, title: () => T("Cài đặt danh mục"), html(){
   return '<div class="lc"><label>' + esc(T("Bộ phận (mỗi dòng 1 mục)")) + '</label><textarea id="sdepts" rows="5">' + esc((S.cfg.depts || []).join("\n")) + '</textarea></div>' +
     '<div class="lc"><label>' + esc(T("Nhóm máy (mỗi dòng 1 mục)")) + '</label><textarea id="sgroups" rows="6">' + esc((S.cfg.groups || []).join("\n")) + '</textarea>' +
-      '<div class="mu sm" style="margin-top:4px">' + esc(T("Nhóm \"Máy đan\" sẽ có thêm ô Loại máy: 7G, 8G, 10G, 13G, 15G.")) + '</div></div>' +
+      '<div class="mu sm" style="margin-top:4px">' + esc(T("Hiện trong ô chọn khi thêm / sửa thiết bị.")) + '</div></div>' +
     '<div class="lc"><label>' + esc(T("Danh mục linh kiện (mỗi dòng 1 mục)")) + '</label><textarea id="sparts" rows="6">' + esc((S.cfg.parts || []).join("\n")) + '</textarea></div>' +
-    '<div class="lc"><label>' + esc(T("Khu vực / xưởng (mỗi dòng 1 mục)")) + '</label><textarea id="sareas" rows="6">' + esc((S.cfg.areas || []).join("\n")) + '</textarea></div>' +
+    '<div class="lc"><label>' + esc(T("Khu vực / xưởng (mỗi dòng 1 mục)")) + '</label><textarea id="sareas" rows="6">' + esc((S.cfg.areas || []).join("\n")) + '</textarea>' +
+      '<div class="mu sm" style="margin-top:4px">' + esc(T("Hiện trong ô chọn khi thêm / sửa thiết bị.")) + '</div></div>' +
     '<div class="lc"><label>' + esc(T("Hạng mục bảo trì thường dùng (mỗi dòng 1 mục)")) + '</label><textarea id="skinds" rows="6">' + esc((S.cfg.kinds || []).join("\n")) + '</textarea></div>' +
     '<button class="btn" onclick="saveCfg()">' + ic("ok") + T("LƯU") + '</button>' + foot();
 }};
 function saveCfg(){
-  const sp = id => $(id).value.split("\n").map(s => s.trim()).filter(Boolean);
-  put("config", "main", {depts: sp("#sdepts"), groups: sp("#sgroups"), parts: sp("#sparts"), areas: sp("#sareas"), kinds: sp("#skinds")}, true); savedMsg(); back();
+  const sp = id => Array.from(new Set($(id).value.split("\n").map(s => s.trim()).filter(Boolean)));   // bỏ dòng trống, bỏ trùng
+  const u = {depts: sp("#sdepts"), groups: sp("#sgroups"), parts: sp("#sparts"), areas: sp("#sareas"), kinds: sp("#skinds")};
+  put("config", "main", u, true);
+  // áp dụng ngay trên máy này (form thiết bị hiện danh mục mới luôn, không chờ đồng bộ)
+  const k = TYPES.config + "_main"; DB0[k] = Object.assign({}, DB0[k] || {type: TYPES.config}, u, {updatedAt: Date.now()});
+  S.cfg = Object.assign({}, S.cfg, u); cacheSave();
+  savedMsg(); back();
 }
 /* ---- Xuất CSV ---- */
 VIEWS.export = {mgr: true, title: () => T("Xuất dữ liệu"), html(){
@@ -2755,6 +2775,10 @@ const JA = {
 "Security Rules đang chặn việc xoá. Cần cho phép xoá trong Firestore Rules.": "Security Rulesで削除がブロックされています。Firestore Rulesで削除を許可してください。",
 
 "— Chọn mã hàng —": "— 品番を選択 —",
+"— Chọn khu vực —": "— エリアを選択 —",
+"Danh sách Nhóm máy và Khu vực lấy từ Cài đặt danh mục.": "設備グループとエリアの選択肢はマスタ設定から読み込みます。",
+"Sửa danh mục": "マスタを編集",
+"Hiện trong ô chọn khi thêm / sửa thiết bị.": "設備の追加・編集時に選択肢として表示されます。",
 "Chưa có mã hàng. Thêm trong Cài đặt danh mục → Mã hàng máy đan.": "品番が未登録です。マスタ設定 → 編み機の品番 で追加してください。",
 
 "Chọn máy": "設備を選択",
