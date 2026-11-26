@@ -317,6 +317,20 @@ table.t th{font-size:13px;color:var(--mu);font-weight:600}
 .imgrp{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--bd)}
 .imlog{font:13px/1.5 ui-monospace,Menlo,monospace;background:#11221b;color:#cfe3d8;border-radius:12px;padding:10px 12px;max-height:280px;overflow:auto;white-space:pre-wrap;margin-top:10px}
 .rgrid{margin-top:14px}
+/* Hướng dẫn vận hành (giám đốc) */
+.gdbtn{display:flex;align-items:center;gap:12px;width:100%;border:1.5px solid var(--g);background:var(--gl);color:var(--g2);border-radius:14px;padding:12px 14px;margin-bottom:12px;cursor:pointer;text-align:left;font:inherit}
+.gdbtn b{display:block;font-size:17px}.gdbtn small{display:block;font-size:13px;color:var(--mu);font-weight:500}.gdbtn .f{flex:1;min-width:0}
+.gd-sum{background:var(--gl);border-radius:12px;padding:12px 14px;font-size:15.5px;line-height:1.6}
+.gd-flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px;font-size:13.5px;font-weight:700}
+.gd-flow span{background:var(--g);color:#fff;border-radius:999px;padding:4px 11px}.gd-flow i{font-style:normal;color:var(--mu)}
+.gd-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.gd-steps li{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:start}
+.gd-steps .n{width:32px;height:32px;border-radius:50%;background:var(--g);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+.gd-steps .n.r{background:var(--r)}.gd-steps .n.a{background:#E0A100;color:#2b2000}
+.gd-steps b{display:block;font-size:16px}.gd-steps .d{color:var(--mu);font-size:14.5px;line-height:1.55}
+.gd-roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.gd-roles div{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.5;background:#fff}
+.gd-roles b{display:block;font-size:15px;margin-bottom:2px;color:var(--g2)}
 </style>
 </head>
 <body>
@@ -327,7 +341,7 @@ table.t th{font-size:13px;color:var(--mu);font-weight:600}
 <script>
 "use strict";
 /* ================== CẤU HÌNH ================== */
-const VERSION = "26/11/2026 10:50";
+const VERSION = "26/11/2026 15:30";
 const COLLECTION = "kachiboshibaotrithietbi";   // cùng tên với app cũ nhưng ở project meeting-notes-hub
 const firebaseConfig = {   // project meeting-notes-hub (app Bảo trì thiết bị mới)
   apiKey: "AIzaSyDopqC4PRNCnO2GzKUAUCn21maUjhjK2M8",
@@ -838,6 +852,7 @@ const VIEWS = {};
 VIEWS.home = {wide: true, live: true, html(){
   const b = buckets(), u = S.user;
   let h = '<div class="hgrid"><div>' + '<div class="row" style="margin-bottom:12px"><div class="f"><div class="mu sm">' + esc(T("Xin chào")) + '</div><div class="b" style="font-size:19px">' + esc(u.name) + '</div></div>' + chip(ROLES[u.role], "g") + '</div>';
+  if (isDirector()) h += '<button class="gdbtn" onclick="go(\'guide\')">' + ic("list") + '<span class="f"><b>' + esc(T("Hướng dẫn vận hành app")) + '</b><small>' + esc(T("Quy trình, thứ tự nhập – để giải thích cho khách hàng")) + '</small></span>' + ic("chev") + '</button>';
   h += '<button class="btn bigscan" onclick="openScan()">' + ic("qr") + T("QUÉT MÃ QR MÁY") + '</button>';
   h += '<div class="kpis">' +
     '<button class="kpi r ' + (b.over.length ? "" : "zero") + '" onclick="go(\'tasks\',{tab:\'over\'})"><b>' + b.over.length + '</b><span>' + esc(T("Trễ hạn")) + '</span></button>' +
@@ -2163,6 +2178,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") closePop(); 
 VIEWS.more = {mgr: true, title: () => T("Tài khoản & cài đặt"), html(){
   const m = (icn, t, fn, sub) => '<div class="it" onclick="' + fn + '">' + ic(icn) + '<div class="f"><div class="t1">' + esc(T(t)) + '</div>' + (sub ? '<div class="t2">' + esc(sub) + '</div>' : "") + '</div>' + ic("chev") + '</div>';
   if (isDirector()) return '<div class="menu">' + userCard() +
+    m("list", "Hướng dẫn vận hành app", "go('guide')", T("Quy trình, thứ tự nhập – để giải thích cho khách hàng")) +
     m("down", "Xuất dữ liệu (Excel/CSV)", "go('export')") +
     m("globe", "Ngôn ngữ", "setLang(LANG==='vi'?'ja':'vi')", LANG === "vi" ? "Tiếng Việt → 日本語" : "日本語 → Tiếng Việt") +
     m("out", "Đăng xuất", "logout()") + '</div>' + foot();
@@ -2174,6 +2190,52 @@ VIEWS.more = {mgr: true, title: () => T("Tài khoản & cài đặt"), html(){
     m("sliders", "Cài đặt danh mục", "go('settings')") +
     (isAdmin() ? m("trash", "Xoá toàn bộ dữ liệu", "go('purge')", T("Chỉ Quản trị, cần mật khẩu")) : "") +
     m("out", "Đăng xuất", "logout()") + '</div>' + foot();
+}};
+/* ---- Hướng dẫn vận hành: giám đốc đọc để hiểu app và giải thích cho khách hàng ---- */
+VIEWS.guide = {wide: true, mgr: true, title: () => T("Hướng dẫn vận hành app"), html(){
+  const ja = LANG === "ja", L = (v, j) => ja ? j : v;
+  const steps = arr => '<ol class="gd-steps">' + arr.map((x, i) => '<li><span class="n ' + (x[2] || "") + '">' + (i + 1) + '</span><div><b>' + x[0] + '</b><div class="d">' + x[1] + '</div></div></li>').join("") + '</ol>';
+  const card = (t, body) => '<div class="card"><h3 style="margin-top:0">' + t + '</h3>' + body + '</div>';
+  const grid = arr => '<div class="gd-roles">' + arr.map(r => '<div><b>' + r[0] + '</b>' + r[1] + '</div>').join("") + '</div>';
+  const setup = [
+    [L("Tạo tài khoản", "アカウント作成"), L("Mỗi người một mã nhân viên + mã PIN. Tạo thêm tài khoản “iPad máy” cho tablet đặt ở xưởng.", "1人1つの社員番号＋PIN。工場に置くタブレット用に「共用タブレット」アカウントも作成します。")],
+    [L("Thêm thiết bị và dán tem QR", "設備登録・QRラベル貼付"), L("Mỗi thiết bị có mã riêng (KCB-0001…), nhóm máy, khu vực. In tem QR và dán lên máy. (Máy đan và máy may quản lý ở app riêng.)", "各設備に固有コード（KCB-0001…）、設備グループ、エリア。QRラベルを印刷して貼ります。（編み機・ミシンは専用アプリで管理）")],
+    [L("Lập kế hoạch bảo trì", "保全計画の作成"), L("Quản đốc chọn máy (chọn nhiều máy một lúc), ghi hạng mục (ví dụ tra dầu mỡ), các bước kiểm tra, chu kỳ (mỗi N ngày / tuần / tháng / năm hoặc 1 lần) và ngày bắt đầu.", "工場長が設備を選び（複数可）、保全項目（例：給油）、点検項目、周期（N日／週／月／年ごと、または1回）と開始日を設定します。")]
+  ];
+  const day = [
+    [L("Xem việc cần làm", "作業の確認"), L("Trên iPad máy, tab “Việc” chia sẵn: Trễ hạn – Hôm nay – Tuần này. App tự tính hạn theo chu kỳ.", "共用タブレットの「作業」タブに「期限切れ・今日・今週」が表示されます。期限は周期から自動計算。"), "a"],
+    [L("Làm bảo trì → Ghi kết quả", "保全実施 → 結果を記録"), L("Mở việc → tick từng bước kiểm tra → chọn Đạt / Không đạt → ghi chú, linh kiện đã thay, ảnh (nếu có) → chọn tên + PIN → Lưu. App tự dời hạn sang lần tiếp theo và đánh dấu nếu làm trễ.", "作業を開く → 各点検項目にチェック → 合格／不合格 → 備考・交換部品・写真（任意）→ 名前＋PIN → 保存。次回期限は自動更新され、遅れた場合は記録されます。")],
+    [L("Không đạt / máy hỏng → Báo sự cố", "不合格・故障 → 異常報告"), L("Kết quả Không đạt thì app hỏi báo sự cố luôn. Máy hỏng đột xuất: quét QR → Báo sự cố → mô tả, ảnh → tên + PIN. Máy đang hỏng thì lịch bảo trì tạm dừng.", "不合格の場合はそのまま異常報告できます。突発故障はQRを読み取り → 異常報告 → 内容・写真 → 名前＋PIN。故障中の設備は保全計画が一時停止します。"), "r"],
+    [L("Sửa xong → Ghi kết quả sửa", "修理完了 → 修理内容を記録"), L("Chưa sửa được thì ghi hướng xử lý. Sửa xong: chọn “Đã sửa xong”, ghi cách sửa, linh kiện đã thay và linh kiện cũ thu hồi (có ảnh). App tự tính thời gian máy hỏng.", "すぐ直せない場合は対応方針を記録。修理後は「修理完了」を選び、修理内容・交換部品・回収した旧部品（写真付き）を記録。故障時間は自動計算されます。")]
+  ];
+  const appr = [
+    [L("Quản đốc duyệt", "工場長が承認"), L("Kết quả bảo trì và báo cáo sự cố (sau khi sửa xong) đều chờ quản đốc duyệt trên Trang chủ. Linh kiện đã thay chỉ tính vào thống kê khi đã duyệt.", "保全結果と異常報告（修理完了後）は、ホーム画面で工場長の承認待ちになります。交換部品は承認後に集計に反映されます。")],
+    [L("Không duyệt → trả lại", "非承認 → 差し戻し"), L("Quản đốc ghi lý do; người làm sửa lại trên iPad rồi gửi lại.", "工場長が理由を記入し、作業者がiPadで修正して再提出します。"), "r"]
+  ];
+  const roles = [
+    [L("Công nhân / Tổ trưởng", "作業者・班長"), L("Làm bảo trì, báo sự cố, sửa máy trên iPad máy: chọn tên + PIN mỗi lần lưu. Tổ trưởng thấy việc của cả bộ phận.", "共用タブレットで保全・異常報告・修理を記録（保存のたびに名前＋PIN）。班長は部署全体の作業を確認できます。")],
+    [L("iPad máy", "共用タブレット"), L("Tablet dùng chung tại xưởng. Ghi kết quả bảo trì và báo sự cố chỉ làm trên iPad máy.", "工場の共用端末。保全結果の記録と異常報告は共用タブレットでのみ行います。")],
+    [L("Quản đốc", "工場長"), L("Thêm / sửa thiết bị, lập kế hoạch bảo trì, duyệt kết quả bảo trì và sự cố, tạo tài khoản tổ trưởng và công nhân.", "設備の追加・編集、保全計画の作成、保全結果と異常の承認、班長・作業者のアカウント作成。")],
+    [L("Admin", "管理者"), L("Toàn quyền cài đặt danh mục; duyệt thay quản đốc khi cần.", "マスタ設定のすべてが可能。必要時は工場長に代わり承認できます。")],
+    [L("Giám đốc", "社長"), L("Chỉ xem toàn bộ, không lưu / sửa / xoá được gì.", "すべて閲覧のみ。保存・編集・削除はできません。")]
+  ];
+  const see = [
+    [L("Trang chủ", "ホーム"), L("Số việc trễ hạn / hôm nay / tuần này, danh sách chờ duyệt (bảo trì, sự cố).", "期限切れ・今日・今週の件数、承認待ち（保全・異常）。")],
+    [L("Thiết bị · Kế hoạch", "設備・計画"), L("Danh sách máy và tình trạng; các kế hoạch đang chạy, việc trễ hạn, tuần này.", "設備一覧と状態。実行中の計画、期限切れ・今週の作業。")],
+    [L("Sự cố", "異常"), L("Máy đang hỏng (bao nhiêu ngày), chờ duyệt, bị trả lại, đã sửa xong trong tháng.", "故障中（日数）、承認待ち、差し戻し、当月の修理完了。")],
+    [L("Báo cáo", "レポート"), L("Số lần bảo trì, tỷ lệ làm đúng hạn, số lần Không đạt, theo nhóm máy, 6 tháng gần nhất; xuất Excel.", "保全回数、期限内実施率、不合格件数、設備グループ別、直近6か月。Excel出力。")],
+    [L("Xem như", "表示画面"), L("Ô chọn trên đầu trang: xem đúng màn hình của quản đốc, tổ trưởng, công nhân hoặc iPad máy – chỉ xem.", "画面上部の選択欄：工場長・班長・作業者・共用タブレットの画面をそのまま確認（閲覧のみ）。")]
+  ];
+  return card(L("Tóm tắt để giải thích cho khách hàng", "お客様への説明（要約）"),
+      '<div class="gd-sum">' + L("App quản lý <b>bảo trì định kỳ</b> toàn bộ thiết bị trong nhà máy bằng <b>mã QR dán trên từng máy</b>. Quản đốc lập <b>kế hoạch bảo trì</b> theo chu kỳ; đến hạn, app tự đưa việc lên iPad. Công nhân làm theo các bước, ghi <b>Đạt / Không đạt</b>, linh kiện đã thay; máy hỏng thì <b>báo sự cố</b>. Mọi kết quả đều được <b>quản đốc duyệt</b>. App tự theo dõi việc trễ hạn, ai làm, lúc nào; báo cáo tháng và Excel có ngay.",
+        "工場の全設備の<b>定期保全</b>を<b>各設備に貼ったQRコード</b>で管理するアプリです。工場長が周期ごとの<b>保全計画</b>を作成すると、期限になった作業が自動でiPadに表示されます。作業者は点検項目に沿って作業し、<b>合格／不合格</b>と交換部品を記録。故障時は<b>異常報告</b>します。すべての結果は<b>工場長が承認</b>します。期限切れ・担当者・時刻は自動で追跡され、月次レポートとExcelもすぐ作れます。") + '</div>' +
+      '<div class="gd-flow">' + [L("Lập kế hoạch", "計画作成"), L("Đến hạn → iPad", "期限 → iPad"), L("Làm & ghi kết quả", "実施・記録"), L("Báo sự cố (nếu hỏng)", "異常報告（故障時）"), L("Quản đốc duyệt", "工場長承認"), L("Báo cáo / Excel", "レポート・Excel")].map(x => '<span>' + x + '</span>').join('<i>→</i>') + '</div>') +
+    card(L("1. Chuẩn bị (làm 1 lần)", "1. 事前準備（1回のみ）"), steps(setup)) +
+    card(L("2. Thứ tự làm hằng ngày (trên iPad máy)", "2. 毎日の作業順序（共用タブレット）"), steps(day) +
+      '<div class="mu sm" style="margin-top:12px">' + L("Mỗi lần lưu trên iPad đều phải chọn tên và nhập PIN, nên biết chính xác ai đã làm. Mất mạng vẫn nhập được, có mạng sẽ tự gửi.", "共用タブレットでは保存のたびに名前とPINが必要なため、誰が作業したか正確に分かります。オフラインでも入力でき、接続後に自動送信されます。") + '</div>') +
+    card(L("3. Duyệt", "3. 承認"), steps(appr)) +
+    card(L("4. Ai làm gì", "4. 役割"), grid(roles)) +
+    card(L("5. Giám đốc xem ở đâu", "5. 社長の確認場所"), grid(see)) + foot();
 }};
 VIEWS.me = {title: () => T("Tôi"), html(){
   return '<div class="menu">' + userCard() +
@@ -2654,6 +2716,7 @@ const JA = {
 "Người nhập": "入力者",
 "đặt lại bộ đếm": "カウンターリセット",
 "Chưa có lần nhập sản lượng nào.": "生産量の入力はまだありません。",
+"Hướng dẫn vận hành app": "操作ガイド", "Quy trình, thứ tự nhập – để giải thích cho khách hàng": "業務の流れと入力順序（お客様への説明用）",
 "Giám đốc": "社長", "Chỉ xem": "閲覧のみ", "Xem như": "表示画面", "Giám đốc chỉ được xem, không thể lưu hay xoá.": "社長は閲覧のみで、保存・削除はできません。",
 "In / PDF": "印刷 / PDF",
 "In lúc {t}": "印刷日時 {t}",
